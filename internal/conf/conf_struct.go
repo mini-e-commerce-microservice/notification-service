@@ -7,7 +7,7 @@ type Config struct {
 	Minio         ConfigMinio         `mapstructure:"MINIO"`
 	DatabaseDSN   string              `mapstructure:"DATABASE_DSN"`
 	RabbitMQ      ConfigRabbitMQ      `mapstructure:"RABBIT_MQ"`
-	Mailing       ConfigMailing       `mapstructure:"MAILING"`
+	Mailer        ConfigMailer        `mapstructure:"MAILER"`
 }
 
 type ConfigRabbitMQ struct {
@@ -31,9 +31,19 @@ type ConfigMinio struct {
 	PrivateBucket   string `mapstructure:"PRIVATE_BUCKET"`
 }
 
-type ConfigMailing struct {
-	MailTrap     ConfigMailTrap `mapstructure:"MAIL_TRAP"`
-	UsedMailTrap bool           `mapstructure:"USE_USED_MAIL_TRAP"`
+type ConfigMailer struct {
+	MailTrap         ConfigMailTrap               `mapstructure:"MAIL_TRAP"`
+	ListEmailAddress ConfigMailerListEmailAddress `mapstructure:"LIST_EMAIL_ADDRESS"`
+	ListTemplate     ConfigMailerListTemplate     `mapstructure:"TEMPLATE_HTML"`
+	UsedMailTrap     bool                         `mapstructure:"USE_USED_MAIL_TRAP"`
+}
+
+type ConfigMailerListEmailAddress struct {
+	NoReplyEmailAddress string `mapstructure:"NO_REPLY_EMAIL_ADDRESS"`
+}
+
+type ConfigMailerListTemplate struct {
+	ActivationEmailOTP string `mapstructure:"ACTIVATION_EMAIL_OTP"`
 }
 
 type ConfigMailTrap struct {

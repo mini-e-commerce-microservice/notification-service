@@ -5,7 +5,7 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
-func NewMail(cred conf.ConfigMailing) *gomail.Dialer {
+func NewMail(cred conf.ConfigMailer) *gomail.Dialer {
 	var dialer *gomail.Dialer
 	if cred.UsedMailTrap {
 		mailTrap := cred.MailTrap

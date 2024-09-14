@@ -2,8 +2,9 @@ package push_mail
 
 import (
 	"context"
-	s3wrapper "github.com/SyaibanAhmadRamadhan/go-s3-wrapper"
+	"errors"
 	"github.com/mini-e-commerce-microservice/notification-service/generated/proto/notification_proto"
+	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/mailer"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/rabbitmq"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/util/tracer"
 	"go.opentelemetry.io/otel"
@@ -40,12 +41,36 @@ func (s *service) RunConsumerBackground(ctx context.Context, input RunConsumerBa
 			err = nil
 		}
 
-		s.s3.GetObject(newCtx, s3wrapper.GetObjectInput{
-			ObjectName: "",
-			BucketName: "",
-		})
+		switch payload.Type {
+		case notification_proto.NotificationType_ACTIVATION_EMAIL:
+			err = s.pushNotifActivationEmail(newCtx, payload.Data)
+			if err != nil {
+				tracer.RecordErrorOtel(span, err)
+			}
+		}
 
 		span.End()
+	}
+
+	return
+}
+
+func (s *service) pushNotifActivationEmail(ctx context.Context, data any) (err error) {
+
+	activationEmail, ok := data.(*notification_proto.Notification_ActivationEmail)
+	if !ok {
+		return tracer.Error(errors.New("failed type assertion to Notification_ActivationEmail" +
+			"but payload type is NotificationType_ACTIVATION_EMAIL"))
+	}
+
+	err = s.mailRepository.SendMailActivationEmail(ctx, mailer.SendMailActivationEmailInput{
+		RecipientEmail: activationEmail.ActivationEmail.RecipientEmail,
+		RecipientName:  activationEmail.ActivationEmail.RecipientName,
+		OTP:            activationEmail.ActivationEmail.OtpCode,
+		ExpiredAt:      activationEmail.ActivationEmail.ExpiredAt.AsTime(),
+	})
+	if err != nil {
+		return tracer.Error(err)
 	}
 
 	return

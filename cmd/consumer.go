@@ -5,7 +5,7 @@ import (
 	s3_wrapper_minio "github.com/SyaibanAhmadRamadhan/go-s3-wrapper/minio"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/conf"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/infra"
-	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/mail"
+	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/mailer"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/rabbitmq"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/services/push_mail"
 	"github.com/rs/zerolog/log"
@@ -22,17 +22,23 @@ var consumerCmd = &cobra.Command{
 
 		otelClose := infra.NewOtelCollector(conf.GetConfig().OpenTelemetry)
 		_, ch, closeRabbitmq := infra.NewRabbitMq(conf.GetConfig().RabbitMQ)
-		mailDialer := infra.NewMail(conf.GetConfig().Mailing)
+		mailDialer := infra.NewMail(conf.GetConfig().Mailer)
 		minioClient := infra.NewMinio(conf.GetConfig().Minio)
 
-		mailRepository := mail.New(mailDialer)
 		rabbitmqRepository := rabbitmq.NewRabbitMq(ch)
 		s3 := s3_wrapper_minio.New(minioClient)
+
+		mailRepository := mailer.New(mailer.NewOpt{
+			ConfigListMailAddress: conf.GetConfig().Mailer.ListEmailAddress,
+			ConfigListTemplate:    conf.GetConfig().Mailer.ListTemplate,
+			Mail:                  mailDialer,
+			S3:                    s3,
+			MinioConfig:           conf.GetConfig().Minio,
+		})
 
 		pushService := push_mail.New(push_mail.NewServiceOpt{
 			RabbitmqRepository: rabbitmqRepository,
 			MailRepository:     mailRepository,
-			S3:                 s3,
 		})
 
 		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
