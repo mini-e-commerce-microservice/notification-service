@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	erabbitmq "github.com/SyaibanAhmadRamadhan/event-bus/rabbitmq"
 	s3_wrapper_minio "github.com/SyaibanAhmadRamadhan/go-s3-wrapper/minio"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/conf"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/infra"
@@ -11,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
@@ -21,11 +23,12 @@ var consumerCmd = &cobra.Command{
 		conf.Init()
 
 		otelClose := infra.NewOtelCollector(conf.GetConfig().OpenTelemetry)
-		_, ch, closeRabbitmq := infra.NewRabbitMq(conf.GetConfig().RabbitMQ)
+		r := erabbitmq.New(conf.GetConfig().RabbitMQ.Url, erabbitmq.WithOtel(conf.GetConfig().RabbitMQ.Url))
+
 		mailDialer := infra.NewMail(conf.GetConfig().Mailer)
 		minioClient := infra.NewMinio(conf.GetConfig().Minio)
 
-		rabbitmqRepository := rabbitmq.NewRabbitMq(ch)
+		rabbitmqRepository := rabbitmq.NewRabbitMq(r)
 		s3 := s3_wrapper_minio.New(minioClient)
 
 		mailRepository := mailer.New(mailer.NewOpt{
@@ -36,9 +39,11 @@ var consumerCmd = &cobra.Command{
 			MinioConfig:           conf.GetConfig().Minio,
 		})
 
+		wg := &sync.WaitGroup{}
 		pushService := push_mail.New(push_mail.NewServiceOpt{
 			RabbitmqRepository: rabbitmqRepository,
 			MailRepository:     mailRepository,
+			WG:                 wg,
 		})
 
 		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -55,6 +60,7 @@ var consumerCmd = &cobra.Command{
 		}()
 
 		<-ctx.Done()
+		wg.Wait()
 
 		log.Info().Msg("Received shutdown signal, shutting down server gracefully...")
 
@@ -62,10 +68,7 @@ var consumerCmd = &cobra.Command{
 			panic(err)
 		}
 
-		if err := closeRabbitmq(context.TODO()); err != nil {
-			panic(err)
-		}
-
+		r.Close()
 		log.Info().Msg("Shutdown complete. Exiting.")
 		return
 	},

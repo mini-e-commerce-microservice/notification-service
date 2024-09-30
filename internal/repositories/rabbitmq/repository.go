@@ -1,15 +1,15 @@
 package rabbitmq
 
 import (
-	amqp "github.com/rabbitmq/amqp091-go"
+	erabbitmq "github.com/SyaibanAhmadRamadhan/event-bus/rabbitmq"
 )
 
 type rabbitmq struct {
-	ch *amqp.Channel
+	r erabbitmq.RabbitMQPubSub
 }
 
-func NewRabbitMq(ch *amqp.Channel) *rabbitmq {
+func NewRabbitMq(r erabbitmq.RabbitMQPubSub) *rabbitmq {
 	return &rabbitmq{
-		ch: ch,
+		r: r,
 	}
 }

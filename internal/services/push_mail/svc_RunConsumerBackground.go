@@ -3,13 +3,15 @@ package push_mail
 import (
 	"context"
 	"errors"
+	erabbitmq "github.com/SyaibanAhmadRamadhan/event-bus/rabbitmq"
 	"github.com/mini-e-commerce-microservice/notification-service/generated/proto/notification_proto"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/mailer"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/rabbitmq"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/util/tracer"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/codes"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,51 +25,71 @@ func (s *service) RunConsumerBackground(ctx context.Context, input RunConsumerBa
 		return tracer.Error(err)
 	}
 
-	for d := range consumerOutput.Messages {
-		newCtx, span := otel.Tracer("rabbitmq").Start(context.Background(), "consumer message", trace.WithAttributes(
-			attribute.String("rabbitmq.correlation_id", d.CorrelationId),
-			attribute.String("rabbitmq.exchange", d.Exchange),
-			attribute.String("rabbitmq.routing_key", d.Exchange),
-			attribute.String("rabbitmq.content_type", d.ContentType),
-			attribute.String("rabbitmq.content_encoding", d.ContentEncoding),
-			attribute.String("rabbitmq.routing_key", d.RoutingKey),
-			attribute.String("rabbitmq.message_id", d.MessageId),
-		))
+	s.wg.Add(1)
 
-		payload := &notification_proto.Notification{}
-		err = proto.Unmarshal(d.Body, payload)
+	for {
+		select {
+		case <-ctx.Done():
+			select {
+			case d := <-consumerOutput.Messages:
+				s.processMessage(d)
+			default:
+				break
+			}
+			s.wg.Done()
+			return
+		case d := <-consumerOutput.Messages:
+			s.processMessage(d)
+		}
+	}
+}
+
+func (s *service) processMessage(d amqp.Delivery) {
+	carrier := erabbitmq.NewDeliveryMessageCarrier(&d)
+	parentCtx := s.propagators.Extract(context.Background(), carrier)
+
+	_, span := otel.Tracer("process push mail").Start(parentCtx, "process push mail notif")
+	defer span.End()
+
+	payload := &notification_proto.Notification{}
+	err := proto.Unmarshal(d.Body, payload)
+	if err != nil {
+		tracer.RecordErrorOtel(span, err)
+		err = nil
+		d.Acknowledger.Ack(d.DeliveryTag, false)
+		return
+	}
+
+	switch payload.Type {
+	case notification_proto.NotificationType_ACTIVATION_EMAIL:
+		span.SetAttributes(attribute.String("notification.type", "ACTIVATION_EMAIL"))
+		activationEmail, ok := payload.Data.(*notification_proto.Notification_ActivationEmail)
+		if !ok {
+			tracer.RecordErrorOtel(span, tracer.Error(errors.New("failed type assertion to Notification_ActivationEmail"+
+				"but payload type is NotificationType_ACTIVATION_EMAIL")))
+			d.Acknowledger.Ack(d.DeliveryTag, false)
+			return
+		}
+
+		err = s.pushNotifActivationEmail(context.Background(), activationEmail)
 		if err != nil {
 			tracer.RecordErrorOtel(span, err)
 			err = nil
+			d.Acknowledger.Nack(d.DeliveryTag, false, true)
+			return
 		}
-
-		switch payload.Type {
-		case notification_proto.NotificationType_ACTIVATION_EMAIL:
-			err = s.pushNotifActivationEmail(newCtx, payload.Data)
-			if err != nil {
-				tracer.RecordErrorOtel(span, err)
-			}
-		}
-
-		span.End()
 	}
 
-	return
+	span.SetStatus(codes.Ok, "Push Notification email successfully")
+	d.Acknowledger.Ack(d.DeliveryTag, false)
 }
 
-func (s *service) pushNotifActivationEmail(ctx context.Context, data any) (err error) {
-
-	activationEmail, ok := data.(*notification_proto.Notification_ActivationEmail)
-	if !ok {
-		return tracer.Error(errors.New("failed type assertion to Notification_ActivationEmail" +
-			"but payload type is NotificationType_ACTIVATION_EMAIL"))
-	}
-
+func (s *service) pushNotifActivationEmail(ctx context.Context, data *notification_proto.Notification_ActivationEmail) (err error) {
 	err = s.mailRepository.SendMailActivationEmail(ctx, mailer.SendMailActivationEmailInput{
-		RecipientEmail: activationEmail.ActivationEmail.RecipientEmail,
-		RecipientName:  activationEmail.ActivationEmail.RecipientName,
-		OTP:            activationEmail.ActivationEmail.OtpCode,
-		ExpiredAt:      activationEmail.ActivationEmail.ExpiredAt.AsTime(),
+		RecipientEmail: data.ActivationEmail.RecipientEmail,
+		RecipientName:  data.ActivationEmail.RecipientName,
+		OTP:            data.ActivationEmail.OtpCode,
+		ExpiredAt:      data.ActivationEmail.ExpiredAt.AsTime(),
 	})
 	if err != nil {
 		return tracer.Error(err)
