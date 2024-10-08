@@ -55,7 +55,8 @@ var consumerCmd = &cobra.Command{
 				ConsumerName: "notification_type_email",
 			})
 			if err != nil {
-				panic(err)
+				log.Err(err).Msg("consumer notification_type_email background error")
+				ctx.Done()
 			}
 		}()
 
@@ -64,8 +65,8 @@ var consumerCmd = &cobra.Command{
 
 		log.Info().Msg("Received shutdown signal, shutting down server gracefully...")
 
-		if err := otelClose(context.TODO()); err != nil {
-			panic(err)
+		if err := otelClose(context.Background()); err != nil {
+			log.Err(err).Msg("failed closed otel")
 		}
 
 		r.Close()
