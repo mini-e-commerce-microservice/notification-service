@@ -1,15 +1,15 @@
 package infra
 
 import (
-	"github.com/mini-e-commerce-microservice/notification-service/internal/conf"
+	"github.com/mini-e-commerce-microservice/notification-service/generated/proto/secret_proto"
 	"gopkg.in/gomail.v2"
 )
 
-func NewMail(cred conf.ConfigMailer) *gomail.Dialer {
+func NewMail(cred *secret_proto.Email) *gomail.Dialer {
 	var dialer *gomail.Dialer
-	if cred.UsedMailTrap {
+	if cred.UseUsedMailTrap {
 		mailTrap := cred.MailTrap
-		dialer = gomail.NewDialer(mailTrap.Host, mailTrap.Port, mailTrap.Username, mailTrap.Password)
+		dialer = gomail.NewDialer(mailTrap.Host, int(mailTrap.Port), mailTrap.Username, mailTrap.Password)
 	} else {
 		panic("unknown mailing provider")
 	}

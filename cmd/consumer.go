@@ -20,23 +20,25 @@ var consumerCmd = &cobra.Command{
 	Use:   "consumer",
 	Short: "run consumer",
 	Run: func(cmd *cobra.Command, args []string) {
-		conf.Init()
+		otelConf := conf.LoadOtelConf()
+		rabbitMqConf := conf.LoadRabbitMQConf()
+		miniConf := conf.LoadMinioConf()
+		mailerConf := conf.LoadMailerConf()
 
-		otelClose := infra.NewOtelCollector(conf.GetConfig().OpenTelemetry)
-		r := erabbitmq.New(conf.GetConfig().RabbitMQ.Url, erabbitmq.WithOtel(conf.GetConfig().RabbitMQ.Url))
+		otelClose := infra.NewOtelCollector(otelConf, "notification-service")
+		r := erabbitmq.New(rabbitMqConf.Url, erabbitmq.WithOtel(rabbitMqConf.Url))
 
-		mailDialer := infra.NewMail(conf.GetConfig().Mailer)
-		minioClient := infra.NewMinio(conf.GetConfig().Minio)
+		mailDialer := infra.NewMail(mailerConf)
+		minioClient := infra.NewMinio(miniConf)
 
 		rabbitmqRepository := rabbitmq.NewRabbitMq(r)
 		s3 := s3_wrapper_minio.New(minioClient)
 
 		mailRepository := mailer.New(mailer.NewOpt{
-			ConfigListMailAddress: conf.GetConfig().Mailer.ListEmailAddress,
-			ConfigListTemplate:    conf.GetConfig().Mailer.ListTemplate,
-			Mail:                  mailDialer,
-			S3:                    s3,
-			MinioConfig:           conf.GetConfig().Minio,
+			MailerConf:  mailerConf,
+			Mail:        mailDialer,
+			S3:          s3,
+			MinioConfig: miniConf,
 		})
 
 		wg := &sync.WaitGroup{}

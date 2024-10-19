@@ -5,14 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/mini-e-commerce-microservice/notification-service/internal/util/tracer"
+	"github.com/SyaibanAhmadRamadhan/go-collection"
 	"gopkg.in/gomail.v2"
 )
 
 func (r *repository) SendMailActivationEmail(ctx context.Context, input SendMailActivationEmailInput) (err error) {
 	tmpl := r.template.Lookup(ActivationMail)
 	if tmpl == nil {
-		return tracer.Error(errors.New("mail template not found"))
+		return collection.Err(errors.New("mail template not found"))
 	}
 
 	tmplBuffer := new(bytes.Buffer)
@@ -23,18 +23,18 @@ func (r *repository) SendMailActivationEmail(ctx context.Context, input SendMail
 	}
 
 	if err = tmpl.Execute(tmplBuffer, tmplData); err != nil {
-		return tracer.Error(err)
+		return collection.Err(err)
 	}
 
 	m := gomail.NewMessage()
-	m.SetHeader("From", r.config.NoReplyEmailAddress)
+	m.SetHeader("From", r.mailerConf.ListEmailAddress.NoReplyEmailAddress)
 	m.SetHeader("To", input.RecipientEmail)
 	m.SetHeader("Subject", fmt.Sprintf("Verify Your Email"))
 	m.SetBody("text/html", tmplBuffer.String())
 
 	err = r.mail.DialAndSend(m)
 	if err != nil {
-		return tracer.Error(err)
+		return collection.Err(err)
 	}
 	return
 }

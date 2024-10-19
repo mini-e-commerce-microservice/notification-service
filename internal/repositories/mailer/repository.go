@@ -3,35 +3,34 @@ package mailer
 import (
 	"context"
 	s3wrapper "github.com/SyaibanAhmadRamadhan/go-s3-wrapper"
-	"github.com/mini-e-commerce-microservice/notification-service/internal/conf"
+	"github.com/mini-e-commerce-microservice/notification-service/generated/proto/secret_proto"
 	"gopkg.in/gomail.v2"
 	"html/template"
 	"io"
 )
 
 type repository struct {
-	mail     *gomail.Dialer
-	config   conf.ConfigMailerListEmailAddress
-	template *template.Template
+	mail       *gomail.Dialer
+	mailerConf *secret_proto.Email
+	template   *template.Template
 }
 
 type NewOpt struct {
-	ConfigListMailAddress conf.ConfigMailerListEmailAddress
-	ConfigListTemplate    conf.ConfigMailerListTemplate
-	Mail                  *gomail.Dialer
-	S3                    s3wrapper.S3Client
-	MinioConfig           conf.ConfigMinio
+	MailerConf  *secret_proto.Email
+	Mail        *gomail.Dialer
+	S3          s3wrapper.S3Client
+	MinioConfig *secret_proto.Minio
 }
 
 func New(opt NewOpt) *repository {
 	r := repository{
-		mail:     opt.Mail,
-		config:   opt.ConfigListMailAddress,
-		template: new(template.Template),
+		mail:       opt.Mail,
+		mailerConf: opt.MailerConf,
+		template:   new(template.Template),
 	}
 
 	templateList := map[string]string{
-		ActivationMail: opt.ConfigListTemplate.ActivationEmailOTP,
+		ActivationMail: opt.MailerConf.TemplateHtml.ActivationEmailOtp,
 	}
 
 	ctx := context.Background()

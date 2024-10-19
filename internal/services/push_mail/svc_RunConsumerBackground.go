@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	erabbitmq "github.com/SyaibanAhmadRamadhan/event-bus/rabbitmq"
+	"github.com/SyaibanAhmadRamadhan/go-collection"
 	"github.com/mini-e-commerce-microservice/notification-service/generated/proto/notification_proto"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/mailer"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/repositories/rabbitmq"
-	"github.com/mini-e-commerce-microservice/notification-service/internal/util/tracer"
+	"github.com/mini-e-commerce-microservice/notification-service/internal/util"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -22,7 +23,7 @@ func (s *service) RunConsumerBackground(ctx context.Context, input RunConsumerBa
 		AutoAck:      true,
 	})
 	if err != nil {
-		return tracer.Error(err)
+		return collection.Err(err)
 	}
 
 	s.wg.Add(1)
@@ -54,7 +55,7 @@ func (s *service) processMessage(d amqp.Delivery) {
 	payload := &notification_proto.Notification{}
 	err := proto.Unmarshal(d.Body, payload)
 	if err != nil {
-		tracer.RecordErrorOtel(span, err)
+		util.RecordErrorOtel(span, err)
 		err = nil
 		d.Acknowledger.Ack(d.DeliveryTag, false)
 		return
@@ -65,7 +66,7 @@ func (s *service) processMessage(d amqp.Delivery) {
 		span.SetAttributes(attribute.String("notification.type", "ACTIVATION_EMAIL"))
 		activationEmail, ok := payload.Data.(*notification_proto.Notification_ActivationEmail)
 		if !ok {
-			tracer.RecordErrorOtel(span, tracer.Error(errors.New("failed type assertion to Notification_ActivationEmail"+
+			util.RecordErrorOtel(span, collection.Err(errors.New("failed type assertion to Notification_ActivationEmail"+
 				"but payload type is NotificationType_ACTIVATION_EMAIL")))
 			d.Acknowledger.Ack(d.DeliveryTag, false)
 			return
@@ -73,7 +74,7 @@ func (s *service) processMessage(d amqp.Delivery) {
 
 		err = s.pushNotifActivationEmail(context.Background(), activationEmail)
 		if err != nil {
-			tracer.RecordErrorOtel(span, err)
+			util.RecordErrorOtel(span, err)
 			err = nil
 			d.Acknowledger.Nack(d.DeliveryTag, false, true)
 			return
@@ -92,7 +93,7 @@ func (s *service) pushNotifActivationEmail(ctx context.Context, data *notificati
 		ExpiredAt:      data.ActivationEmail.ExpiredAt.AsTime(),
 	})
 	if err != nil {
-		return tracer.Error(err)
+		return collection.Err(err)
 	}
 
 	return

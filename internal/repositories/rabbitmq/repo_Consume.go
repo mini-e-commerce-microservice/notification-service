@@ -3,7 +3,7 @@ package rabbitmq
 import (
 	"context"
 	erabbitmq "github.com/SyaibanAhmadRamadhan/event-bus/rabbitmq"
-	"github.com/mini-e-commerce-microservice/notification-service/internal/util/tracer"
+	"github.com/SyaibanAhmadRamadhan/go-collection"
 )
 
 func (r *rabbitmq) Consume(ctx context.Context, input ConsumeInput) (output ConsumeOutput, err error) {
@@ -19,7 +19,7 @@ func (r *rabbitmq) Consume(ctx context.Context, input ConsumeInput) (output Cons
 		},
 	)
 	if err != nil {
-		return output, tracer.Error(err)
+		return output, collection.Err(err)
 	}
 
 	output = ConsumeOutput{

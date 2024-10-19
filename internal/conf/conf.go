@@ -1,57 +1,105 @@
 package conf
 
 import (
+	"context"
 	"flag"
+	"github.com/SyaibanAhmadRamadhan/go-collection"
 	"github.com/go-faker/faker/v4"
-	"github.com/spf13/viper"
+	"github.com/hashicorp/vault-client-go"
+	"github.com/mini-e-commerce-microservice/notification-service/generated/proto/secret_proto"
+	"github.com/mitchellh/mapstructure"
+	"log"
+	"os"
+	"time"
 )
 
-var conf *Config
-
-func Init() {
-	if flag.Lookup("test.v") != nil {
-		fakeConf := Config{}
-		err := faker.FakeData(&fakeConf)
-		if err != nil {
-			panic(err)
-		}
-		conf = &fakeConf
-		return
+func openVaultClient[T any](path, mount string, output T) error {
+	vaultAddr := os.Getenv("VAULT_ADDR")
+	if vaultAddr == "" {
+		vaultAddr = "http://localhost:8201"
+	}
+	vaultToken := os.Getenv("VAULT_SECRET")
+	if vaultToken == "" {
+		vaultToken = "secret"
 	}
 
-	listDir := []string{".", "../", "../../", "../../../", "../../../../", "../../../../../", "../../../../../"}
-
-	for _, dir := range listDir {
-		viper.SetConfigName("env")
-		viper.SetConfigType("json")
-		viper.AddConfigPath(dir)
-		err := viper.ReadInConfig()
-		if err == nil {
-			//viper.SetConfigName("env.override")
-			//err = viper.MergeInConfig()
-			//if err != nil {
-			//	panic(err)
-			//}
-			if err = viper.Unmarshal(&conf); err != nil {
-				panic(err)
-			}
-			return
-		}
-	}
-
-	panic("cannot load env")
-}
-
-func InitForTest() {
-	fakeConf := Config{}
-	err := faker.FakeData(&fakeConf)
+	client, err := vault.New(
+		vault.WithAddress(vaultAddr),
+		vault.WithRequestTimeout(30*time.Second),
+	)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	conf = &fakeConf
-	return
+
+	if err = client.SetToken(vaultToken); err != nil {
+		return err
+	}
+
+	s, err := client.Secrets.KvV2Read(context.Background(), path, vault.WithMountPath(mount))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:  output,
+		TagName: "json",
+	})
+	if err != nil {
+		return err
+	}
+	err = decoder.Decode(s.Data.Data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func GetConfig() *Config {
-	return conf
+func LoadOtelConf() *secret_proto.Otel {
+	otelConf := &secret_proto.Otel{}
+	if flag.Lookup("test.v") != nil {
+		err := faker.FakeData(&otelConf)
+		collection.PanicIfErr(err)
+		return otelConf
+	}
+
+	err := openVaultClient("otel", "kv", otelConf)
+	collection.PanicIfErr(err)
+	return otelConf
+}
+
+func LoadMinioConf() *secret_proto.Minio {
+	minioConf := &secret_proto.Minio{}
+	if flag.Lookup("test.v") != nil {
+		err := faker.FakeData(&minioConf)
+		collection.PanicIfErr(err)
+		return minioConf
+	}
+	err := openVaultClient("minio", "kv", minioConf)
+	collection.PanicIfErr(err)
+	return minioConf
+}
+
+func LoadRabbitMQConf() *secret_proto.RabbitMQ {
+	rabbitConf := &secret_proto.RabbitMQ{}
+	if flag.Lookup("test.v") != nil {
+		err := faker.FakeData(&rabbitConf)
+		collection.PanicIfErr(err)
+		return rabbitConf
+	}
+	err := openVaultClient("rabbitmq", "kv", rabbitConf)
+	collection.PanicIfErr(err)
+	return rabbitConf
+}
+
+func LoadMailerConf() *secret_proto.Email {
+	mailerConf := &secret_proto.Email{}
+	if flag.Lookup("test.v") != nil {
+		err := faker.FakeData(&mailerConf)
+		collection.PanicIfErr(err)
+		return mailerConf
+	}
+	err := openVaultClient("mailer", "kv", mailerConf)
+	collection.PanicIfErr(err)
+	return mailerConf
 }

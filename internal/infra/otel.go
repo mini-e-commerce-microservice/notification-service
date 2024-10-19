@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/mini-e-commerce-microservice/notification-service/internal/conf"
+	"github.com/mini-e-commerce-microservice/notification-service/generated/proto/secret_proto"
 	"github.com/mini-e-commerce-microservice/notification-service/internal/util/primitive"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func NewOtelCollector(cred conf.ConfigOpenTelemetry) primitive.CloseFn {
+func NewOtelCollector(cred *secret_proto.Otel, tracerName string) primitive.CloseFn {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -36,7 +36,7 @@ func NewOtelCollector(cred conf.ConfigOpenTelemetry) primitive.CloseFn {
 	}
 
 	provider := &otelProvider{
-		name: cred.TracerName,
+		name: tracerName,
 	}
 
 	traceProvide, closeFnTracer, err := provider.start(traceExporter)
