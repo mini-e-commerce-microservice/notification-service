@@ -4,10 +4,12 @@ go 1.22.5
 
 require (
 	github.com/SyaibanAhmadRamadhan/event-bus/rabbitmq v1.240930.2210
+	github.com/SyaibanAhmadRamadhan/go-collection v1.241019.2240
 	github.com/SyaibanAhmadRamadhan/go-s3-wrapper v1.240910.1043
 	github.com/SyaibanAhmadRamadhan/go-s3-wrapper/minio v1.240910.1052
 	github.com/go-faker/faker/v4 v4.5.0
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/minio/minio-go/v7 v7.0.76
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/rabbitmq/amqp091-go v1.10.0
@@ -25,7 +27,6 @@ require (
 
 require (
 	github.com/SyaibanAhmadRamadhan/event-bus v1.240930.2158 // indirect
-	github.com/SyaibanAhmadRamadhan/go-collection v1.241019.2240 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -39,7 +40,6 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
-	github.com/hashicorp/vault-client-go v0.4.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect

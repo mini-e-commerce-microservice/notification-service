@@ -7,7 +7,7 @@ import (
 func main() {
 	var rootCmd = &cobra.Command{}
 
-	rootCmd.AddCommand(consumerCmd)
+	rootCmd.AddCommand(consumerPushNotificationEmailCmd)
 
 	err := rootCmd.Execute()
 	if err != nil {

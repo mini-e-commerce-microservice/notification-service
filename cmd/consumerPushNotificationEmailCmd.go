@@ -16,9 +16,9 @@ import (
 	"syscall"
 )
 
-var consumerCmd = &cobra.Command{
-	Use:   "consumer",
-	Short: "run consumer",
+var consumerPushNotificationEmailCmd = &cobra.Command{
+	Use:   "consumerPushNotificationEmail",
+	Short: "run consumerPushNotificationEmail",
 	Run: func(cmd *cobra.Command, args []string) {
 		otelConf := conf.LoadOtelConf()
 		rabbitMqConf := conf.LoadRabbitMQConf()
@@ -57,8 +57,8 @@ var consumerCmd = &cobra.Command{
 				ConsumerName: "notification_type_email",
 			})
 			if err != nil {
-				log.Err(err).Msg("consumer notification_type_email background error")
-				ctx.Done()
+				log.Err(err).Msg("consumerPushNotificationEmail notification_type_email background error")
+				stop()
 			}
 		}()
 
